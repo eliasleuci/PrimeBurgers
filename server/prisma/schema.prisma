@@ -1,0 +1,154 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  CASHIER
+  KITCHEN
+}
+
+enum OrderStatus {
+  PENDING
+  PREPARING
+  READY
+  DELIVERED
+  CANCELLED
+}
+
+model Branch {
+  id          String   @id @default(uuid())
+  name        String
+  address     String?
+  phone       String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users       User[]
+  products    Product[]
+  ingredients Ingredient[]
+  orders      Order[]
+
+  @@map("branches")
+}
+
+model User {
+  id          String   @id @default(uuid())
+  email       String   @unique
+  password    String
+  name        String
+  role        Role     @default(CASHIER)
+  branchId    String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  branch      Branch   @relation(fields: [branchId], references: [id])
+  orders      Order[]
+
+  @@index([branchId])
+  @@map("users")
+}
+
+model Category {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  products    Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  price       Decimal  @db.Decimal(10, 2)
+  image       String?
+  categoryId  String
+  branchId    String
+  isActive    Boolean  @default(true)
+  deletedAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  category    Category @relation(fields: [categoryId], references: [id])
+  branch      Branch   @relation(fields: [branchId], references: [id])
+  recipe      RecipeItem[]
+  orderItems  OrderItem[]
+
+  @@index([branchId])
+  @@index([categoryId])
+  @@map("products")
+}
+
+model Ingredient {
+  id          String   @id @default(uuid())
+  name        String
+  unit        String   // gr, ml, unit, etc.
+  stock       Float    @default(0)
+  minStock    Float    @default(0)
+  branchId    String
+  deletedAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  branch      Branch   @relation(fields: [branchId], references: [id])
+  recipeItems RecipeItem[]
+
+  @@index([branchId])
+  @@map("ingredients")
+}
+
+model RecipeItem {
+  id            String     @id @default(uuid())
+  productId     String
+  ingredientId  String
+  quantity      Float      // Cuánto de este ingrediente usa el producto
+
+  product       Product    @relation(fields: [productId], references: [id])
+  ingredient    Ingredient @relation(fields: [ingredientId], references: [id])
+
+  @@unique([productId, ingredientId])
+  @@map("recipe_items")
+}
+
+model Order {
+  id          String      @id @default(uuid())
+  orderNumber Int         @default(autoincrement())
+  status      OrderStatus @default(PENDING)
+  total       Decimal     @db.Decimal(10, 2)
+  branchId    String
+  userId      String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  branch      Branch      @relation(fields: [branchId], references: [id])
+  user        User?       @relation(fields: [userId], references: [id])
+  items       OrderItem[]
+
+  @@index([branchId])
+  @@index([createdAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String   @id @default(uuid())
+  orderId   String
+  productId String
+  quantity  Int
+  price     Decimal  @db.Decimal(10, 2) // Precio al momento de la venta
+
+  order     Order    @relation(fields: [orderId], references: [id])
+  product   Product  @relation(fields: [productId], references: [id])
+
+  @@map("order_items")
+}
