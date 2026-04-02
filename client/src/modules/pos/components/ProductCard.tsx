@@ -4,7 +4,6 @@ import { motion } from 'framer-motion';
 import { cn } from '../../../lib/utils';
 import Card from '../../../components/ui/Card';
 import Badge from '../../../components/ui/Badge';
-import { ANIMATIONS } from '../../../lib/motion';
 
 interface ProductCardProps {
   product: any;
@@ -26,14 +25,14 @@ const ProductCard: React.FC<ProductCardProps> = React.memo(({ product, onAdd }) 
     >
       <Card
         variant="glass"
-        padding="normal"
+        padding="none"
         className={cn(
           "w-full border-border-subtle shadow-xl hover:shadow-primary/10 hover:border-primary/30 transition-all",
           "bg-surface-elevated/80 backdrop-blur-md"
         )}
       >
         {/* IMAGE / ICON */}
-        <div className="aspect-square bg-surface-base rounded-2xl mb-4 flex items-center justify-center overflow-hidden border border-border-subtle relative">
+        <div className="aspect-square bg-surface-base rounded-2xl mb-3 flex items-center justify-center overflow-hidden border-b border-border-subtle relative">
           {product.image_url ? (
             <img src={product.image_url} alt={product.name} className="w-full h-full object-cover transition-transform group-hover:scale-110" />
           ) : (
@@ -53,15 +52,15 @@ const ProductCard: React.FC<ProductCardProps> = React.memo(({ product, onAdd }) 
         </div>
 
         {/* INFO */}
-        <div className="flex flex-col">
-          <h3 className="font-black text-lg text-text-primary uppercase tracking-tight leading-none mb-2 line-clamp-1">
+        <div className="p-4">
+          <h3 className="font-black text-lg text-text-primary uppercase tracking-tight leading-none mb-1 line-clamp-1">
             {product.name}
           </h3>
-          <p className="text-text-muted text-[10px] uppercase font-bold tracking-widest line-clamp-1 mb-4">
+          <p className="text-text-muted text-[10px] uppercase font-bold tracking-widest line-clamp-1 mb-3">
             {product.category_name || "Producto"}
           </p>
 
-          <div className="mt-auto flex items-center justify-between">
+          <div className="flex items-center justify-between">
             <span className="text-2xl font-black text-primary tracking-tighter">
               ${Number(product.price)}
             </span>

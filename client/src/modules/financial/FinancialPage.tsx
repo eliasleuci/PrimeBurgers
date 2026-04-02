@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { orderService } from '../../services/orderService';
 import { useAuthStore } from '../../store/authStore';
 import { 
@@ -28,12 +28,7 @@ const FinancialPage: React.FC = () => {
     avgTicket: 0,
   });
 
-  useEffect(() => {
-    if (!branchId) return;
-    fetchStats();
-  }, [branchId, dateFilter, customDate]);
-
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     if (!branchId) return;
     
     setLoading(true);
@@ -94,9 +89,14 @@ const FinancialPage: React.FC = () => {
       });
     }
     setLoading(false);
-  };
+  }, [branchId, dateFilter, customDate]);
 
-  const getFilterLabel = () => {
+  useEffect(() => {
+    if (!branchId) return;
+    fetchStats();
+  }, [branchId, fetchStats]);
+
+  const getFilterLabel = useMemo(() => {
     switch (dateFilter) {
       case 'hoy': return 'Hoy';
       case 'ayer': return 'Ayer';
@@ -104,7 +104,11 @@ const FinancialPage: React.FC = () => {
       case 'mes': return 'Mes actual';
       case 'personalizado': return customDate ? customDate.split('-').reverse().join('/') : 'Personalizado';
     }
-  };
+  }, [dateFilter, customDate]);
+
+  const handleSetDateFilter = useCallback((filter: DateFilter) => {
+    setDateFilter(filter);
+  }, []);
 
   return (
     <div className="min-h-screen bg-surface-base text-text-primary p-10 font-sans relative overflow-hidden">
@@ -181,7 +185,7 @@ const FinancialPage: React.FC = () => {
               leftIcon={<Calendar size={18} />}
               className={customDate && dateFilter === 'personalizado' ? 'border border-primary z-20' : 'z-20'}
             >
-              {dateFilter === 'personalizado' ? getFilterLabel() : 'Fecha'}
+              {dateFilter === 'personalizado' ? getFilterLabel : 'Fecha'}
             </Button>
           </div>
         </div>
@@ -209,7 +213,7 @@ const FinancialPage: React.FC = () => {
                     ${stats.totalSales.toLocaleString()}
                   </span>
                 </div>
-                <p className="text-[10px] font-bold text-text-muted mt-2">{getFilterLabel()}</p>
+                <p className="text-[10px] font-bold text-text-muted mt-2">{getFilterLabel}</p>
               </div>
             </Card>
 

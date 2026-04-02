@@ -101,7 +101,7 @@ const POSPage: React.FC = () => {
     setSelectedCategory(id);
   }, []);
 
-  const handleCheckout = async () => {
+  const handleCheckout = useCallback(async () => {
     if (!branchId || items.length === 0 || checkoutStatus === 'loading') return;
 
     if (orderType === 'MESA' && !selectedTableId) {
@@ -143,25 +143,23 @@ const POSPage: React.FC = () => {
       return;
     }
 
-    // Auto-ocupar mesa si aplica
     if (orderType === 'MESA' && selectedTableId) {
       await tableService.occupyTable(selectedTableId, customerName || 'Cliente POS');
     }
 
     setCheckoutStatus('success');
-    clearCart(); // Clear only on absolute success
-    setSearchTerm(''); // Clear search state
-    setCustomerName(''); // Clear customer name
-    setCustomerAddress(''); // Clear address field
+    clearCart();
+    setSearchTerm('');
+    setCustomerName('');
+    setCustomerAddress('');
     setOrderType('TAKEAWAY');
     setSelectedTableId('');
     
-    // Venta Rápida: Focus search input immediately
     setTimeout(() => {
       setCheckoutStatus('idle');
       searchInputRef.current?.focus();
     }, 2000);
-  };
+  }, [branchId, user?.id, items, customerName, customerAddress, orderType, selectedTableId, paymentMethod, getTotal, clearCart, checkoutStatus]);
 
   // 3. FILTERING LOGIC
   const filteredProducts = useMemo(() => {
@@ -218,7 +216,7 @@ const POSPage: React.FC = () => {
         </header>
 
         {/* PRODUCT GRID */}
-        <div className="flex-1 overflow-y-auto grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 pr-2 scroll-smooth pb-12">
+        <div className="flex-1 overflow-y-auto grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 pr-2 scroll-smooth pb-12 items-start">
           <AnimatePresence mode="popLayout">
             {filteredProducts.map((p) => (
               <ProductCard 

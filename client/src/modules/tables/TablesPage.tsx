@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useAuthStore } from '../../store/authStore';
 import { tableService, Table, TableStatus } from '../../services/tableService';
 import { supabase } from '../../lib/supabase';
@@ -396,13 +396,16 @@ const TablesPage: React.FC = () => {
     else { showToast('Mesa eliminada', 'success'); loadTables(); }
   };
 
-  const filtered = filter === 'ALL' ? tables : tables.filter(t => t.status === filter);
+  const filtered = useMemo(() => 
+    filter === 'ALL' ? tables : tables.filter(t => t.status === filter),
+    [tables, filter]
+  );
 
-  const counts = {
+  const counts = useMemo(() => ({
     free: tables.filter(t => t.status === 'FREE').length,
     occupied: tables.filter(t => t.status === 'OCCUPIED').length,
     reserved: tables.filter(t => t.status === 'RESERVED').length,
-  };
+  }), [tables]);
 
   return (
     <div className="min-h-screen bg-surface-base text-text-primary p-8 relative overflow-hidden font-sans">

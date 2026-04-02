@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { orderService } from '../../services/orderService';
 import { useAuthStore } from '../../store/authStore';
 import { 
@@ -13,15 +13,12 @@ import {
   CheckCircle,
   ArrowUpRight
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { Order } from '../../types/domain';
-import { ANIMATIONS } from '../../lib/motion';
 import { cn } from '../../lib/utils';
 import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
 import Button from '../../components/ui/Button';
 
-// --- HELPERS ---
 const fmtTime = (iso: string) =>
   new Date(iso).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
 
@@ -34,8 +31,7 @@ const getDur = (from: string, to: string) => {
   return `${min}m ${sec}s`;
 };
 
-// --- MINI TIMELINE PARA DASHBOARD ---
-const MiniTimeline: React.FC<{ order: Order }> = ({ order }) => {
+const MiniTimeline: React.FC<{ order: Order }> = React.memo(({ order }) => {
   const steps = [
     {
       label: 'Recibido',
@@ -93,10 +89,9 @@ const MiniTimeline: React.FC<{ order: Order }> = ({ order }) => {
       </div>
     </div>
   );
-};
+});
 
-// --- SUB-COMPONENT: SPARKLINE SVG ---
-const Sparkline = ({ data, color }: { data: number[], color: string }) => {
+const Sparkline = React.memo(({ data, color }: { data: number[], color: string }) => {
   const max = Math.max(...data, 1);
   const pts = data.map((v, i) => `${(i / (data.length - 1)) * 100},${100 - (v / max) * 100}`).join(' ');
   
@@ -112,10 +107,9 @@ const Sparkline = ({ data, color }: { data: number[], color: string }) => {
       />
     </svg>
   );
-};
+});
 
-// --- SUB-COMPONENT: STAT CARD ---
-const DashboardStat = ({ title, value, subValue, icon, trend, color, sparkData }: any) => (
+const DashboardStat = React.memo(({ title, value, subValue, icon, trend, color, sparkData }: any) => (
   <Card variant="glass" padding="normal" className="relative group overflow-hidden border-white/5 bg-slate-900/40">
     <div className="flex justify-between items-start mb-4">
       <div className={cn("p-3 rounded-2xl bg-white/5 border border-white/10 group-hover:scale-110 transition-transform", color)}>
@@ -138,9 +132,8 @@ const DashboardStat = ({ title, value, subValue, icon, trend, color, sparkData }
       </div>
     </div>
   </Card>
-);
+));
 
-// --- SUB-COMPONENT: SKELETON ---
 const DashboardSkeleton = () => (
   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
     {[1, 2, 3, 4].map(i => (
@@ -160,58 +153,55 @@ const DashboardPage: React.FC = () => {
     recentOrders: [],
   });
 
-  useEffect(() => {
+  const fetchStats = useCallback(async () => {
     if (!branchId) return;
+    setLoading(true);
+    
+    let startDate = new Date();
+    startDate.setHours(0, 0, 0, 0);
 
-    const fetchStats = async () => {
-      setLoading(true);
-      
-      // Calculamos la fecha de inicio según el filtro para la base de datos
-      let startDate = new Date();
-      startDate.setHours(0, 0, 0, 0);
+    if (dateFilter === 'ayer') {
+      startDate.setDate(startDate.getDate() - 1);
+    } else if (dateFilter === 'personalizado' && customDate) {
+      const [year, month, day] = customDate.split('-').map(Number);
+      startDate = new Date(year, month - 1, day, 0, 0, 0, 0);
+    }
 
-      if (dateFilter === 'ayer') {
-        startDate.setDate(startDate.getDate() - 1);
-      } else if (dateFilter === 'personalizado' && customDate) {
-        const [year, month, day] = customDate.split('-').map(Number);
-        startDate = new Date(year, month - 1, day, 0, 0, 0, 0);
-      }
+    const { data: fetchedOrders } = await orderService.getBranchOrders(
+      branchId, 
+      100,
+      startDate.toISOString()
+    );
 
-      const { data: fetchedOrders } = await orderService.getBranchOrders(
-        branchId, 
-        100, // Límite razonable para actividad reciente y stats
-        startDate.toISOString()
-      );
+    if (fetchedOrders) {
+      let filterEnd = new Date(startDate);
+      filterEnd.setHours(23, 59, 59, 999);
 
-      if (fetchedOrders) {
-        // Filtro final para asegurar el rango (especialmente para "Ayer")
-        let filterEnd = new Date(startDate);
-        filterEnd.setHours(23, 59, 59, 999);
+      const filteredOrders = fetchedOrders.filter((o: Order) => {
+        const d = new Date(o.created_at);
+        return d >= startDate && d <= filterEnd;
+      });
 
-        const filteredOrders = fetchedOrders.filter((o: Order) => {
-          const d = new Date(o.created_at);
-          return d >= startDate && d <= filterEnd;
-        });
+      const orderCount = filteredOrders.length;
+      const active = filteredOrders.filter((o: Order) => o.status === 'PENDING' || o.status === 'PREPARING').length;
 
-        const orderCount = filteredOrders.length;
-        const active = filteredOrders.filter((o: Order) => o.status === 'PENDING' || o.status === 'PREPARING').length;
-
-        setStats({
-          orders: orderCount,
-          activeOrders: active,
-          recentOrders: filteredOrders
-            .filter((o: Order) => ['PENDING', 'PREPARING', 'READY'].includes(o.status))
-            .sort((a: Order, b: Order) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-            .slice(0, 8),
-        });
-      }
-      setLoading(false);
-    };
-
-    fetchStats();
+      setStats({
+        orders: orderCount,
+        activeOrders: active,
+        recentOrders: filteredOrders
+          .filter((o: Order) => ['PENDING', 'PREPARING', 'READY'].includes(o.status))
+          .sort((a: Order, b: Order) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+          .slice(0, 8),
+      });
+    }
+    setLoading(false);
   }, [branchId, dateFilter, customDate]);
 
-  const handleResetOrders = async () => {
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
+
+  const handleResetOrders = useCallback(async () => {
     if (!branchId) return;
     if (!confirm('¿Estás seguro de eliminar TODOS los pedidos de esta sucursal? Esta acción no se puede deshacer.')) return;
 
@@ -221,11 +211,10 @@ const DashboardPage: React.FC = () => {
     if (error) {
       alert(`Error al limpiar pedidos: ${error}`);
     } else {
-      // Refresh stats
       window.location.reload();
     }
     setLoading(false);
-  };
+  }, [branchId]);
 
   return (
     <div className="min-h-screen bg-surface-base text-text-primary p-10 font-sans relative overflow-hidden">

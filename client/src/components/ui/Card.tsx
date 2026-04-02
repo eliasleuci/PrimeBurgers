@@ -52,7 +52,7 @@ const Card = React.forwardRef<HTMLDivElement, CardProps>(
             )}
           </div>
         ) : null}
-        <div className="flex-1">
+        <div>
           {children as React.ReactNode}
         </div>
       </motion.div>

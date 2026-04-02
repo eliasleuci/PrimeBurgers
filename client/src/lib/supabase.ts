@@ -7,7 +7,10 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('--- SUPABASE CREDENTIALS MISSING ---');
 }
 
-export const supabase = createClient(
-  supabaseUrl,
-  supabaseAnonKey
-);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  realtime: {
+    params: {
+      eventsPerSecond: 20,
+    },
+  },
+});

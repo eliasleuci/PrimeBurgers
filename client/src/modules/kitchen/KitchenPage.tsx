@@ -1,7 +1,8 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useOrders } from '../../hooks/useOrders';
 import { useAuthStore } from '../../store/authStore';
 import { orderService } from '../../services/orderService';
+import { Order } from '../../types/domain';
 import { ChefHat, Loader2, Signal, LogOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ANIMATIONS } from '../../lib/motion';
@@ -11,15 +12,14 @@ import OrderCard from './components/OrderCard';
 const KitchenPage: React.FC = () => {
   const { branchId, setBranchId } = useAuthStore();
   
-  // 0. AUDIO ALERT SYSTEM
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  
   const playBell = useCallback(() => {
-    try {
-      const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-      audio.volume = 0.5;
-      audio.play().catch(e => console.warn('Audio play blocked by browser policy:', e));
-    } catch (e) {
-      console.warn('Audio not supported');
+    if (!audioRef.current) {
+      audioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+      audioRef.current.volume = 0.5;
     }
+    audioRef.current.play().catch(() => {});
   }, []);
 
   const memoizedOptions = useMemo(() => {
@@ -28,13 +28,21 @@ const KitchenPage: React.FC = () => {
     return { startDate: yesterday.toISOString() };
   }, []);
 
-  const handleNewOrder = useCallback((newOrder: any) => {
+  const handleNewOrder = useCallback((newOrder: Order) => {
     if (newOrder.status === 'PENDING') {
       playBell();
     }
   }, [playBell]);
 
-  const { orders, loading } = useOrders(branchId, memoizedOptions, handleNewOrder);
+  const { orders, loading, isConnected, lastUpdate, pendingCount } = useOrders(branchId, memoizedOptions, handleNewOrder);
+
+  const syncTimeDisplay = useMemo(() => {
+    if (!lastUpdate) return 'Sincronizando...';
+    const seconds = Math.floor((Date.now() - lastUpdate.getTime()) / 1000);
+    if (seconds < 2) return 'Ahora';
+    if (seconds < 60) return `${seconds}s`;
+    return `${Math.floor(seconds / 60)}m`;
+  }, [lastUpdate]);
 
   const [errorToast, setErrorToast] = useState<string | null>(null);
   const [successToast, setSuccessToast] = useState<string | null>(null);
@@ -118,16 +126,27 @@ const KitchenPage: React.FC = () => {
           )}
           <div className="flex items-center gap-4 bg-surface-elevated/50 backdrop-blur-md px-6 py-4 rounded-3xl border border-white/5 shadow-xl">
             <div className="flex items-center gap-3">
-              <div className="w-2.5 h-2.5 bg-success rounded-full animate-pulse shadow-[0_0_15px_rgba(16,185,129,0.5)]" />
+              <div className={`w-2.5 h-2.5 rounded-full animate-pulse shadow-[0_0_15px_rgba(16,185,129,0.5)] ${isConnected ? 'bg-success' : 'bg-warning'}`} />
               <span className="text-xs font-black text-text-primary uppercase tracking-widest">
-                Conexión Activa
+                {isConnected ? 'Conexión Activa' : 'Reconectando...'}
               </span>
             </div>
+            {pendingCount > 0 && (
+              <>
+                <div className="w-px h-5 bg-white/10 mx-2" />
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-warning rounded-full animate-pulse" />
+                  <span className="text-[10px] font-black text-warning uppercase tracking-widest">
+                    {pendingCount} Actualizando
+                  </span>
+                </div>
+              </>
+            )}
             <div className="w-px h-5 bg-white/10 mx-2" />
             <div className="flex items-center gap-2">
-              <Signal className="w-4 h-4 text-text-muted" />
+              <Signal className={`w-4 h-4 ${isConnected ? 'text-success' : 'text-warning'}`} />
               <span className="text-[10px] font-black text-text-muted uppercase tracking-widest">
-                Sync 1.2s
+                Sync {syncTimeDisplay}
               </span>
             </div>
           </div>
