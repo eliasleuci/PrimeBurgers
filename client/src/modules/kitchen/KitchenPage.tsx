@@ -2,7 +2,7 @@ import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { useOrders } from '../../hooks/useOrders';
 import { useAuthStore } from '../../store/authStore';
 import { orderService } from '../../services/orderService';
-import { Order } from '../../types/domain';
+import { Order, OrderStatus } from '../../types/domain';
 import { ChefHat, Loader2, Signal, LogOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ANIMATIONS } from '../../lib/motion';
@@ -36,6 +36,17 @@ const KitchenPage: React.FC = () => {
 
   const { orders, loading, isConnected, lastUpdate, pendingCount } = useOrders(branchId, memoizedOptions, handleNewOrder);
 
+  // Estado local para actualización optimista
+  const [localOrders, setLocalOrders] = useState<Order[]>([]);
+  const isUpdatingRef = useRef(false);
+
+  // Sincronizar estado local con datos entrantes del hook (solo si no hay actualización activa)
+  useEffect(() => {
+    if (!isUpdatingRef.current) {
+      setLocalOrders(orders);
+    }
+  }, [orders]);
+
   const syncTimeDisplay = useMemo(() => {
     if (!lastUpdate) return 'Sincronizando...';
     const seconds = Math.floor((Date.now() - lastUpdate.getTime()) / 1000);
@@ -56,28 +67,82 @@ const KitchenPage: React.FC = () => {
     }
   }, [branchId, setBranchId]);
 
-  // 1. MEMOIZED STATUS HANDLER
+  // 1. MEMOIZED STATUS HANDLER (with Optimistic Update)
   const handleStatusChange = useCallback(async (orderId: string, currentStatus: string) => {
-    const nextStatus = currentStatus === 'PENDING' ? 'PREPARING' : 'READY';
+    // Evitar actualizaciones duplicadas
+    if (isUpdatingRef.current) return;
     
+    isUpdatingRef.current = true;
+    
+    const nextStatus: OrderStatus = currentStatus === 'PENDING' ? 'PREPARING' : 'READY';
+    const now = new Date().toISOString();
+    
+    // 1. Actualización optimista inmediata en el estado local
+    setLocalOrders((prev) => 
+      prev.map((order) => {
+        if (order.id === orderId) {
+          return {
+            ...order,
+            status: nextStatus,
+            started_at: nextStatus === 'PREPARING' ? now : order.started_at,
+            ready_at: nextStatus === 'READY' ? now : order.ready_at
+          } as Order;
+        }
+        return order;
+      })
+    );
+
     try {
-      const { error } = await orderService.updateOrderStatus(orderId, nextStatus as any);
+      // 2. Llamada a la API en segundo plano
+      const { error } = await orderService.updateOrderStatus(orderId, nextStatus);
       if (error) {
+        // Revertir cambio si falla
+        const revertedStatus: OrderStatus = currentStatus as OrderStatus;
+        setLocalOrders((prev) => 
+          prev.map((order) => {
+            if (order.id === orderId) {
+              return {
+                ...order,
+                status: revertedStatus,
+                started_at: currentStatus === 'PENDING' ? null : order.started_at,
+                ready_at: currentStatus === 'PREPARING' ? null : order.ready_at
+              } as Order;
+            }
+            return order;
+          })
+        );
         setErrorToast('Error de conexión con cocina');
         return;
       }
       setSuccessToast(nextStatus === 'PREPARING' ? '¡Pedido en fuego!' : '¡Pedido despachado!');
     } catch (err: any) {
+      // Revertir cambio si falla
+      const revertedStatus: OrderStatus = currentStatus as OrderStatus;
+      setLocalOrders((prev) => 
+        prev.map((order) => {
+          if (order.id === orderId) {
+            return {
+              ...order,
+              status: revertedStatus,
+              started_at: currentStatus === 'PENDING' ? null : order.started_at,
+              ready_at: currentStatus === 'PREPARING' ? null : order.ready_at
+            } as Order;
+          }
+          return order;
+        })
+      );
       setErrorToast('Falla crítica de sistema');
+    } finally {
+      isUpdatingRef.current = false;
     }
   }, []);
 
   // 2. FIFO LOGIC & FILTERING
   const activeOrders = useMemo(() => {
-    return orders
+    return localOrders
       .filter((o) => o.status === 'PENDING' || o.status === 'PREPARING')
       .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-  }, [orders]);
+  }, [localOrders]);
 
   if (loading) {
     return (

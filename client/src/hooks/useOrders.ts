@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { Order } from '../types/domain';
 
@@ -15,6 +15,7 @@ interface UseOrdersReturn {
   lastUpdate: Date | null;
   refetch: () => Promise<void>;
   pendingCount: number;
+  setOrders: React.Dispatch<React.SetStateAction<Order[]>>;
 }
 
 const FULL_ORDER_SELECT = '*, tables(*), order_items(*, products(*))';
@@ -215,5 +216,5 @@ export const useOrders = (
     };
   }, [branchId, onNewOrder, fetchFullOrder, loadOrders, queueUpdate]);
 
-  return { orders, loading, isConnected, lastUpdate, refetch, pendingCount };
+  return { orders, loading, isConnected, lastUpdate, refetch, pendingCount, setOrders };
 };
