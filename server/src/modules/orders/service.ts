@@ -8,30 +8,23 @@ const orderRepository = new OrderRepository();
 const productRepository = new ProductRepository();
 
 export class OrderService {
-  async create(branchId: string, userId: string, items: { productId: string; quantity: number }[]) {
+  async create(branchId: string | null, userId: string, items: { productId: string; quantity: number }[]) {
     logger.info(`[OrderService] Processing new order | branch=${branchId} user=${userId} items=${items.length}`);
 
     let total = 0;
-    const orderItems: { productId: string; quantity: number; price: number }[] = [];
-    const recipeChanges: { ingredientId: string; ingredientName: string; quantity: number }[] = [];
+    const orderItems: any[] = [];
+    const recipeChanges: any[] = [];
 
-    // Process each item to calculate total and check stock/recipe
     for (const item of items) {
       const product = await productRepository.findByIdWithRecipe(item.productId);
 
       if (!product) {
-        logger.warn(`[OrderService] Product not found or inactive: ${item.productId}`);
-        throw new AppError(`Product ${item.productId} not found or inactive`, 404);
-      }
-
-      if (product.recipe.length === 0) {
-        logger.warn(`[OrderService] Product "${product.name}" has no recipe defined`);
+        logger.warn(`[OrderService] Product not found or unauthorized: ${item.productId}`);
+        throw new AppError(`Product not found or unauthorized`, 404);
       }
 
       const itemTotal = Number(product.price) * item.quantity;
       total += itemTotal;
-
-      logger.info(`[OrderService] Item: "${product.name}" x${item.quantity} = $${itemTotal}`);
 
       orderItems.push({
         productId: item.productId,
@@ -39,48 +32,42 @@ export class OrderService {
         price: Number(product.price)
       });
 
-      // Calculate total ingredients needed
-      for (const recipeItem of product.recipe) {
-        const needed = recipeItem.quantity * item.quantity;
-        recipeChanges.push({
-          ingredientId: recipeItem.ingredientId,
-          ingredientName: recipeItem.ingredient.name,
-          quantity: needed
-        });
-        logger.info(`[OrderService] Ingredient needed: "${recipeItem.ingredient.name}" x${needed} ${recipeItem.ingredient.unit}`);
+      if (product.recipe) {
+        for (const recipeItem of product.recipe) {
+          const needed = Number(recipeItem.quantity) * item.quantity;
+          recipeChanges.push({
+            ingredientId: recipeItem.ingredientId,
+            ingredientName: recipeItem.ingredient?.name,
+            quantity: needed
+          });
+        }
       }
     }
 
-    logger.info(`[OrderService] Order total: $${total} | Ingredients to decrement: ${recipeChanges.length}`);
-
-    // Execute atomic transaction
     try {
+      
       const order = await orderRepository.createOrderWithTransaction(
         {
-          branch: { connect: { id: branchId } },
+          branch: branchId ? { connect: { id: branchId } } : undefined,
           user: { connect: { id: userId } },
           total: total
-        },
+        } as any,
         orderItems,
         recipeChanges
       );
 
-      logger.info(`[OrderService] ✅ Order created successfully | orderId=${order.id} total=$${total}`);
       return order;
     } catch (error: any) {
-      logger.error(`[OrderService] ❌ Order creation FAILED | reason: ${error.message}`);
+      logger.error(`[OrderService] ❌ Order creation FAILED: ${error.message}`);
       throw new AppError(error.message, 400);
     }
   }
 
-  async getBranchOrders(branchId: string) {
+  async getBranchOrders(branchId?: string | null) {
     return orderRepository.findByBranch(branchId);
   }
 
   async updateOrderStatus(orderId: string, status: OrderStatus) {
-    logger.info(`[OrderService] Updating order status | orderId=${orderId} newStatus=${status}`);
-    const order = await orderRepository.updateStatus(orderId, status);
-    logger.info(`[OrderService] ✅ Order status updated | orderId=${orderId} status=${status}`);
-    return order;
+    return orderRepository.updateStatus(orderId, status);
   }
 }

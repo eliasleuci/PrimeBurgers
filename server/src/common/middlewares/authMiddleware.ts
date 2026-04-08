@@ -1,45 +1,34 @@
 import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
+import * as jwt from 'jsonwebtoken';
 import { AppError } from '../exceptions/AppError';
-import { prisma } from '../../config/database';
+import { getContext } from '../utils/context';
+import { logger } from '../utils/logger';
 
-interface JwtPayload {
-  id: string;
-  role: string;
-  branchId: string;
-}
-
-declare global {
-  namespace Express {
-    interface Request {
-      user?: JwtPayload;
-    }
-  }
-}
-
-export const authMiddleware = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
+export const authMiddleware = async (req: Request, res: Response, next: NextFunction) => {
   const token = req.headers.authorization?.split(' ')[1];
-
-  if (!token) {
-    return next(new AppError('No authenticated user', 0x191));
-  }
+  if (!token) return next(new AppError('No authenticated user', 401));
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as JwtPayload;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as any;
+    const store = getContext();
 
-    // Optional: Check if user still exists and isActive
-    const user = await prisma.user.findUnique({ where: { id: decoded.id } });
-    if (!user || !user.isActive) {
-      return next(new AppError('The user no longer exists or is inactive', 0x191));
+    if (store) {
+      store.tenantId = decoded.tenantId;
+      store.userId = decoded.id;
     }
+
+    logger.info(`${req.method} ${req.url} | tenantId=${decoded.tenantId}`);
+
+    res.on('finish', () => {
+      if (store) {
+        const duration = Date.now() - store.startTime;
+        logger.info(`Request completed | method=${req.method} url=${req.url} status=${res.statusCode} durationMs=${duration}`);
+      }
+    });
 
     req.user = decoded;
     next();
   } catch (err) {
-    return next(new AppError('Invalid token', 0x191));
+    return next(new AppError('Invalid token', 401));
   }
 };

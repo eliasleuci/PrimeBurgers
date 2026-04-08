@@ -9,12 +9,11 @@ export class OrderRepository {
     recipeChanges: { ingredientId: string; ingredientName: string; quantity: number }[]
   ) {
     const startTime = Date.now();
-    logger.info(`[OrderRepository] Starting critical transaction | items=${items.length} ingredients=${recipeChanges.length}`);
+    logger.info(`[OrderRepository] Starting critical transaction | items=${items.length}`);
 
     try {
       const result = await prisma.$transaction(async (tx) => {
-        // 1. Final Stock Validation & Atomic Decrement
-        // Using updateMany with 'gte' is an atomic Compare-And-Swap (CAS) in the DB
+        
         for (const change of recipeChanges) {
           const updated = await tx.ingredient.updateMany({
             where: {
@@ -31,7 +30,6 @@ export class OrderRepository {
           }
         }
 
-        // 2. Persist Order and Items
         const order = await tx.order.create({
           data: {
             ...data,
@@ -40,7 +38,7 @@ export class OrderRepository {
                 productId: item.productId,
                 quantity: item.quantity,
                 price: item.price
-              }))
+              } as any))
             }
           },
           include: { items: true }
@@ -52,34 +50,27 @@ export class OrderRepository {
       });
 
       const durationMs = Date.now() - startTime;
-      logger.info(`[OrderRepository] ✅ Transaction COMMITTED | orderId=${result.id} durationMs=${durationMs}`, {
-        orderId: result.id,
-        durationMs,
-        status: 'success'
-      });
+      logger.info(`[OrderRepository] ✅ Transaction COMMITTED | orderId=${result.id}`);
 
       return result;
     } catch (error: any) {
-      const durationMs = Date.now() - startTime;
-      logger.error(`[OrderRepository] ❌ Transaction FAILED | reason=${error.message} durationMs=${durationMs}`, {
-        error: error.message,
-        durationMs,
-        status: 'failure'
-      });
+      logger.error(`[OrderRepository] ❌ Transaction FAILED | reason=${error.message}`);
       throw error;
     }
   }
 
-  async findByBranch(branchId: string) {
+  async findByBranch(branchId?: string | null) {
     return prisma.order.findMany({
-      where: { branchId },
+      where: { 
+        ...(branchId && { branchId }) 
+      },
       orderBy: { createdAt: 'desc' },
       include: { items: { include: { product: true } } }
     });
   }
 
   async findById(id: string) {
-    return prisma.order.findUnique({
+    return prisma.order.findFirst({
       where: { id },
       include: { items: { include: { product: true } } }
     });

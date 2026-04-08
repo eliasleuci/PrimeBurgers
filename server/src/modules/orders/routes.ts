@@ -8,13 +8,13 @@ import { z } from 'zod';
 const router = Router();
 const orderController = new OrderController();
 
-// Validation Schemas
 const createOrderSchema = z.object({
   body: z.object({
     items: z.array(
       z.object({
         productId: z.string().uuid(),
-        quantity: z.number().int().positive()
+        quantity: z.number().int().positive(),
+        price: z.number().positive().optional() 
       })
     ).min(1)
   })
@@ -26,7 +26,6 @@ const updateStatusSchema = z.object({
   })
 });
 
-// Routes
 router.use(authMiddleware);
 
 router.post(

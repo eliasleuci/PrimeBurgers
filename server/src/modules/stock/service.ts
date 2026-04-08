@@ -1,12 +1,12 @@
 import { StockRepository } from './repository';
 import { AppError } from '../../common/exceptions/AppError';
 
-type MovementType = 'ADD' | 'REMOVE' | 'ADJUST' | 'INITIAL';
+import { movement_type } from '@prisma/client';
 
 const stockRepository = new StockRepository();
 
 export class StockService {
-  async getBranchStock(branchId: string) {
+  async getBranchStock(branchId: string | null) {
     return stockRepository.findByBranch(branchId);
   }
 
@@ -15,7 +15,7 @@ export class StockService {
     unit: string;
     stock: number;
     minStock: number;
-    branchId: string;
+    branchId: string | null;
     categoryId?: string;
   }) {
     if (!data.name?.trim()) throw new AppError('El nombre es requerido', 400);
@@ -27,12 +27,32 @@ export class StockService {
   }
 
   async deleteIngredient(id: string, userId?: string) {
+    const exists = await stockRepository.findById(id);
+    if (!exists) throw new AppError('Ingrediente no encontrado', 404);
+    
     return stockRepository.delete(id, userId);
   }
 
-  async setStock(id: string, newStock: number, userId?: string, type: MovementType = 'ADJUST', reason?: string) {
-    if (newStock < 0) throw new AppError('Stock cannot be negative', 400);
-    return stockRepository.updateStock(id, newStock, userId, type, reason);
+  async setStock(
+    id: string, 
+    newStock: number, 
+    userId: string, 
+    type: movement_type = 'ADJUST', 
+    reason?: string
+  ) {
+    if (newStock < 0) throw new AppError('El stock no puede ser negativo', 400);
+    
+    const ingredient = await stockRepository.findById(id);
+    if (!ingredient) throw new AppError('Ingrediente no encontrado', 404);
+
+    return stockRepository.updateStock(
+      id, 
+      newStock, 
+      Number(ingredient.stock),
+      userId, 
+      type, 
+      reason
+    );
   }
 
   async getCategories() {
@@ -44,11 +64,11 @@ export class StockService {
     return stockRepository.createCategory(name);
   }
 
-  async getStockMovements(branchId: string, startDate?: Date, endDate?: Date) {
+  async getStockMovements(branchId: string | null, startDate?: Date, endDate?: Date) {
     return stockRepository.getStockMovements(branchId, startDate, endDate);
   }
 
-  async getStockReport(branchId: string) {
+  async getStockReport(branchId: string | null) {
     return stockRepository.getStockReport(branchId);
   }
 }

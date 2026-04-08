@@ -4,9 +4,17 @@ import { AuthService } from './service';
 const authService = new AuthService();
 
 export class AuthController {
-  async login(req: Request, res: Response, next: NextFunction) {
+  login = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { email, password } = req.body;
+
+      if (!email || !password) {
+        return res.status(400).json({
+          status: 'fail',
+          message: 'Por favor, proporcione email y contraseña'
+        });
+      }
+
       const data = await authService.login(email, password);
 
       res.status(200).json({
@@ -16,18 +24,17 @@ export class AuthController {
     } catch (error) {
       next(error);
     }
-  }
+  };
 
-  async exchangeToken(req: Request, res: Response, next: NextFunction) {
+  exchangeToken = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { supabaseToken } = req.body;
       
       if (!supabaseToken) {
-        res.status(400).json({
-          status: 'error',
+        return res.status(400).json({
+          status: 'fail',
           message: 'supabaseToken is required'
         });
-        return;
       }
 
       const data = await authService.exchangeToken(supabaseToken);
@@ -39,5 +46,5 @@ export class AuthController {
     } catch (error) {
       next(error);
     }
-  }
+  };
 }

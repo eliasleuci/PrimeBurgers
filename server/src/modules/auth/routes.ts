@@ -19,7 +19,7 @@ const exchangeTokenSchema = z.object({
   })
 });
 
-router.post('/login', validate(loginSchema), authController.login);
-router.post('/exchange-token', validate(exchangeTokenSchema), authController.exchangeToken);
+router.post('/login', validate(loginSchema), (req, res, next) => authController.login(req, res, next));
+router.post('/exchange-token', validate(exchangeTokenSchema), (req, res, next) => authController.exchangeToken(req, res, next));
 
 export default router;

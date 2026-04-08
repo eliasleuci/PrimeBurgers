@@ -6,10 +6,232 @@ datasource db {
   provider = "postgresql"
 }
 
-enum Role {
-  ADMIN
-  CASHIER
-  KITCHEN
+model Tenant {
+  id                   String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                 String
+  slug                 String               @unique
+  isActive             Boolean?             @default(true) @map("is_active")
+  createdAt            DateTime?            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime?            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  branches             Branch[]
+  categories           Category[]
+  ingredientCategories IngredientCategory[]
+  ingredients          Ingredient[]
+  orderItems           OrderItem[]
+  orders               Order[]
+  products             Product[]
+  users                User[]
+  recipeItems          RecipeItem[]
+  stockMovements       StockMovement[]
+  tables               tables[]
+
+  @@map("tenants")
+}
+
+model Branch {
+  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String
+  location    String?
+  createdAt   DateTime?    @default(now()) @map("created_at") @db.Timestamptz(6)
+  tenantId    String       @map("tenant_id") @db.Uuid
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_branches_tenant")
+  ingredients Ingredient[]
+  orders      Order[]
+  products    Product[]
+  users       User[]
+  tables      tables[]
+
+  @@map("branches")
+}
+
+model User {
+  id        String    @id @default(uuid()) @db.Uuid
+  email     String
+  role      String?   @default("CASHIER")
+  branchId  String?   @map("branch_id") @db.Uuid
+  createdAt DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  name      String?
+  tenantId  String    @map("tenant_id") @db.Uuid
+  password  String?
+  full_name String?
+  is_active Boolean?  @default(true)
+  orders    Order[]
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_profiles_tenant")
+  branch    Branch?   @relation(fields: [branchId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  stockMovements StockMovement[]
+
+  @@map("profiles")
+}
+
+model Category {
+  id       String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name     String    @unique
+  tenantId String    @map("tenant_id") @db.Uuid
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_categories_tenant")
+  products Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id         String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name       String
+  price      Decimal      @db.Decimal(10, 2)
+  categoryId String?      @map("category_id") @db.Uuid
+  image      String?      @map("image_url")
+  branchId   String?      @map("branch_id") @db.Uuid
+  isActive   Boolean?     @default(true) @map("is_active")
+  createdAt  DateTime?    @default(now()) @map("created_at") @db.Timestamptz(6)
+  tenantId   String       @map("tenant_id") @db.Uuid
+  orderItems OrderItem[]
+  tenant     Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_products_tenant")
+  branch     Branch?      @relation(fields: [branchId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  category   Category?    @relation(fields: [categoryId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  recipe     RecipeItem[]
+
+  @@index([branchId, isActive], map: "idx_products_branch_active")
+  @@index([branchId], map: "idx_products_branch_id")
+  @@index([categoryId], map: "idx_products_category_id")
+  @@map("products")
+}
+
+model Ingredient {
+  id          String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String
+  stock       Decimal             @default(0) @db.Decimal(10, 3)
+  unit        String
+  minStock    Decimal             @default(0) @map("min_stock") @db.Decimal(10, 3)
+  branchId    String?             @map("branch_id") @db.Uuid
+  createdAt   DateTime?           @default(now()) @map("created_at") @db.Timestamptz(6)
+  categoryId  String?             @map("category_id") @db.Uuid
+  is_active   Boolean?            @default(true)
+  tenantId    String              @map("tenant_id") @db.Uuid
+  category    IngredientCategory? @relation(fields: [categoryId], references: [id], onUpdate: NoAction, map: "fk_ingredients_category")
+  tenant      Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_ingredients_tenant")
+  branch      Branch?             @relation(fields: [branchId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  recipeItems RecipeItem[]
+  stockMovements StockMovement[]
+
+  @@map("ingredients")
+}
+
+model IngredientCategory {
+  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String       @unique
+  createdAt   DateTime?    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime?    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  tenantId    String       @map("tenant_id") @db.Uuid
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_ingredient_categories_tenant")
+  ingredients Ingredient[]
+
+  @@map("ingredient_categories")
+}
+
+model StockMovement {
+  id           String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ingredientId String        @map("ingredient_id") @db.Uuid
+  ingredient   Ingredient    @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+  userId       String?       @map("user_id") @db.Uuid
+  user         User?         @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  type         movement_type @default(ADJUST)
+  quantity     Decimal       @db.Decimal(10, 3)
+  stockBefore  Decimal       @map("stock_before") @db.Decimal(10, 3)
+  stockAfter   Decimal       @map("stock_after") @db.Decimal(10, 3)
+  reason       String?
+  createdAt    DateTime?     @default(now()) @map("created_at") @db.Timestamptz(6)
+  tenantId     String        @map("tenant_id") @db.Uuid
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_stock_movements_tenant")
+
+  @@index([createdAt(sort: Desc)], map: "idx_stock_movements_created")
+  @@index([ingredientId], map: "idx_stock_movements_ingredient")
+  @@index([userId], map: "idx_stock_movements_user")
+  @@map("stock_movements")
+}
+
+model RecipeItem {
+  id           String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  productId    String?     @map("product_id") @db.Uuid
+  ingredientId String?     @map("ingredient_id") @db.Uuid
+  quantity     Decimal     @db.Decimal(10, 3)
+  tenantId     String      @map("tenant_id") @db.Uuid
+  tenant       Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_recipes_tenant")
+  ingredient   Ingredient? @relation(fields: [ingredientId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  product      Product?    @relation(fields: [productId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([productId, ingredientId])
+  @@map("recipes")
+}
+
+model Order {
+  id               String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderNumber      Int         @default(autoincrement()) @map("ticket_number")
+  status           OrderStatus?  @default(PENDING)
+  total            Decimal     @db.Decimal(10, 2)
+  payment_method   String?
+  customer_name    String?
+  customer_address String?
+  order_type       String?     @default("TAKEAWAY")
+  table_id         String?     @db.Uuid
+  branchId         String?     @map("branch_id") @db.Uuid
+  userId           String?     @map("user_id") @db.Uuid
+  started_at       DateTime?   @db.Timestamptz(6)
+  ready_at         DateTime?   @db.Timestamptz(6)
+  createdAt        DateTime?   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime?   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  tenantId         String      @map("tenant_id") @db.Uuid
+  items            OrderItem[]
+  tenant           Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_orders_tenant")
+  branch           Branch?     @relation(fields: [branchId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  tables           tables?     @relation(fields: [table_id], references: [id], onUpdate: NoAction)
+  user             User?       @relation(fields: [userId], references: [id], onUpdate: NoAction)
+
+  @@index([branchId], map: "idx_orders_branch_id")
+  @@index([status], map: "idx_orders_status")
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId   String?  @map("order_id") @db.Uuid
+  productId String?  @map("product_id") @db.Uuid
+  quantity  Int
+  price     Decimal  @map("unit_price") @db.Decimal(10, 2)
+  modifiers Json?
+  notes     String?
+  tenantId  String   @map("tenant_id") @db.Uuid
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_order_items_tenant")
+  order     Order?   @relation(fields: [orderId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  product   Product? @relation(fields: [productId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("order_items")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model tables {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  branch_id     String?   @db.Uuid
+  number        Int
+  label         String?
+  capacity      Int?      @default(2)
+  status        String?   @default("FREE")
+  customer_name String?
+  notes         String?
+  opened_at     DateTime? @db.Timestamptz(6)
+  created_at    DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime? @default(now()) @db.Timestamptz(6)
+  tenant_id     String    @db.Uuid
+  orders        Order[]
+  tenants       Tenant    @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_tables_tenant")
+  branches      Branch?   @relation(fields: [branch_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([branch_id, number])
+}
+
+enum movement_type {
+  ADD
+  REMOVE
+  ADJUST
+  INITIAL
 }
 
 enum OrderStatus {
@@ -18,178 +240,4 @@ enum OrderStatus {
   READY
   DELIVERED
   CANCELLED
-}
-
-model Branch {
-  id          String   @id @default(uuid())
-  name        String
-  address     String?
-  phone       String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  users       User[]
-  products    Product[]
-  ingredients Ingredient[]
-  orders      Order[]
-
-  @@map("branches")
-}
-
-model User {
-  id          String   @id @default(uuid())
-  email       String   @unique
-  password    String
-  name        String
-  role        Role     @default(CASHIER)
-  branchId    String
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  branch      Branch   @relation(fields: [branchId], references: [id])
-  orders      Order[]
-  stockMovements StockMovement[]
-
-  @@index([branchId])
-  @@map("users")
-}
-
-model Category {
-  id          String   @id @default(uuid())
-  name        String   @unique
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  products    Product[]
-
-  @@map("categories")
-}
-
-model Product {
-  id          String   @id @default(uuid())
-  name        String
-  description String?
-  price       Decimal  @db.Decimal(10, 2)
-  image       String?
-  categoryId  String
-  branchId    String
-  isActive    Boolean  @default(true)
-  deletedAt   DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  category    Category @relation(fields: [categoryId], references: [id])
-  branch      Branch   @relation(fields: [branchId], references: [id])
-  recipe      RecipeItem[]
-  orderItems  OrderItem[]
-
-  @@index([branchId])
-  @@index([categoryId])
-  @@map("products")
-}
-
-model Ingredient {
-  id          String    @id @default(uuid())
-  name        String
-  unit        String    // gr, ml, unit, etc.
-  stock       Float     @default(0)
-  minStock    Float     @default(0)
-  categoryId  String?
-  branchId    String
-  deletedAt   DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  branch      Branch    @relation(fields: [branchId], references: [id])
-  category    IngredientCategory? @relation(fields: [categoryId], references: [id])
-  recipeItems RecipeItem[]
-  movements   StockMovement[]
-
-  @@index([branchId])
-  @@index([categoryId])
-  @@map("ingredients")
-}
-
-model IngredientCategory {
-  id          String   @id @default(uuid())
-  name        String   @unique
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  ingredients Ingredient[]
-
-  @@map("ingredient_categories")
-}
-
-enum MovementType {
-  ADD       // Reposición manual
-  REMOVE    // Consumo por orden
-  ADJUST    // Ajuste manual (positvo o negativo)
-  INITIAL   // Stock inicial
-}
-
-model StockMovement {
-  id            String        @id @default(uuid())
-  ingredientId  String
-  userId        String?
-  type          MovementType
-  quantity      Float         // Cantidad cambiada (puede ser negativa)
-  stockBefore   Float         // Stock antes del cambio
-  stockAfter    Float         // Stock después del cambio
-  reason        String?       // Nota o motivo del cambio
-  createdAt     DateTime      @default(now())
-
-  ingredient    Ingredient    @relation(fields: [ingredientId], references: [id])
-  user          User?         @relation(fields: [userId], references: [id])
-
-  @@index([ingredientId])
-  @@index([createdAt])
-  @@map("stock_movements")
-}
-
-model RecipeItem {
-  id            String     @id @default(uuid())
-  productId     String
-  ingredientId  String
-  quantity      Float      // Cuánto de este ingrediente usa el producto
-
-  product       Product    @relation(fields: [productId], references: [id])
-  ingredient    Ingredient @relation(fields: [ingredientId], references: [id])
-
-  @@unique([productId, ingredientId])
-  @@map("recipe_items")
-}
-
-model Order {
-  id          String      @id @default(uuid())
-  orderNumber Int         @default(autoincrement())
-  status      OrderStatus @default(PENDING)
-  total       Decimal     @db.Decimal(10, 2)
-  branchId    String
-  userId      String?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-
-  branch      Branch      @relation(fields: [branchId], references: [id])
-  user        User?       @relation(fields: [userId], references: [id])
-  items       OrderItem[]
-
-  @@index([branchId])
-  @@index([createdAt])
-  @@map("orders")
-}
-
-model OrderItem {
-  id        String   @id @default(uuid())
-  orderId   String
-  productId String
-  quantity  Int
-  price     Decimal  @db.Decimal(10, 2) // Precio al momento de la venta
-
-  order     Order    @relation(fields: [orderId], references: [id])
-  product   Product  @relation(fields: [productId], references: [id])
-
-  @@map("order_items")
 }

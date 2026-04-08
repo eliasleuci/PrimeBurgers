@@ -1,18 +1,22 @@
 import { prisma } from '../../config/database';
-
-type MovementType = 'ADD' | 'REMOVE' | 'ADJUST' | 'INITIAL';
+import { movement_type, Prisma } from '@prisma/client';
 
 export class StockRepository {
-  async findByBranch(branchId: string) {
+  async findByBranch(branchId: string | null) {
     return prisma.ingredient.findMany({
-      where: { branchId, deletedAt: null },
+      where: { 
+        ...(branchId && { branchId }), 
+        is_active: true 
+      },
       include: { category: true },
       orderBy: { name: 'asc' }
     });
   }
 
   async findById(id: string) {
-    return prisma.ingredient.findUnique({ where: { id } });
+    return prisma.ingredient.findFirst({ 
+      where: { id, is_active: true } 
+    });
   }
 
   async create(data: {
@@ -20,7 +24,7 @@ export class StockRepository {
     unit: string;
     stock: number;
     minStock: number;
-    branchId: string;
+    branchId: string | null;
     categoryId?: string;
   }) {
     return prisma.ingredient.create({
@@ -31,18 +35,18 @@ export class StockRepository {
         minStock: data.minStock,
         branchId: data.branchId,
         categoryId: data.categoryId || null
-      }
+      } as any
     });
   }
 
   async delete(id: string, userId?: string) {
-    const ingredient = await prisma.ingredient.findUnique({ where: { id } });
+    const ingredient = await this.findById(id);
     if (!ingredient) throw new Error('Ingredient not found');
 
     return prisma.$transaction(async (tx) => {
       const updated = await tx.ingredient.update({
         where: { id },
-        data: { deletedAt: new Date() }
+        data: { is_active: false }
       });
 
       await tx.stockMovement.create({
@@ -54,19 +58,22 @@ export class StockRepository {
           stockBefore: ingredient.stock,
           stockAfter: 0,
           reason: 'Ingrediente eliminado'
-        }
+        } as any
       });
 
       return updated;
     });
   }
 
-  async updateStock(id: string, newStock: number, userId?: string, type: MovementType = 'ADJUST', reason?: string) {
-    const ingredient = await prisma.ingredient.findUnique({ where: { id } });
-    if (!ingredient) throw new Error('Ingredient not found');
-
-    const stockBefore = ingredient.stock;
-    const quantity = newStock - stockBefore;
+  async updateStock(
+    id: string, 
+    newStock: number, 
+    stockBefore: number, 
+    userId?: string, 
+    type: movement_type = 'ADJUST', 
+    reason?: string
+  ) {
+    const quantity = Math.abs(newStock - stockBefore);
 
     return prisma.$transaction(async (tx) => {
       const updated = await tx.ingredient.update({
@@ -83,7 +90,7 @@ export class StockRepository {
           stockBefore,
           stockAfter: newStock,
           reason: reason || null
-        }
+        } as any
       });
 
       return updated;
@@ -98,13 +105,15 @@ export class StockRepository {
 
   async createCategory(name: string) {
     return prisma.ingredientCategory.create({
-      data: { name: name.trim().toUpperCase() }
+      data: { 
+        name: name.trim().toUpperCase() 
+      } as any
     });
   }
 
-  async getStockMovements(branchId: string, startDate?: Date, endDate?: Date) {
+  async getStockMovements(branchId: string | null, startDate?: Date, endDate?: Date) {
     const where: any = {
-      ingredient: { branchId }
+      ...(branchId && { ingredient: { branchId } })
     };
 
     if (startDate || endDate) {
@@ -124,57 +133,30 @@ export class StockRepository {
     });
   }
 
-  async getStockReport(branchId: string) {
-    const ingredients = await prisma.ingredient.findMany({
-      where: { branchId, deletedAt: null },
-      select: {
-        id: true,
-        name: true,
-        unit: true,
-        stock: true,
-        minStock: true
-      }
-    });
+  async getStockReport(branchId: string | null) {
+    const ingredients = await this.findByBranch(branchId);
 
     const total = ingredients.length;
-    const okCount = ingredients.filter(i => i.stock > i.minStock).length;
-    const lowCount = ingredients.filter(i => i.stock > 0 && i.stock <= i.minStock).length;
-    const outCount = ingredients.filter(i => i.stock === 0).length;
+    const okCount = ingredients.filter(i => Number(i.stock) > Number(i.minStock)).length;
+    const lowCount = ingredients.filter(i => Number(i.stock) > 0 && Number(i.stock) <= Number(i.minStock)).length;
+    const outCount = ingredients.filter(i => Number(i.stock) === 0).length;
 
     const lowStockItems = ingredients
-      .filter(i => i.stock <= i.minStock)
-      .sort((a, b) => a.stock - b.minStock - (b.stock - b.minStock))
+      .filter(i => Number(i.stock) <= Number(i.minStock))
+      .sort((a, b) => Number(a.stock) - Number(b.stock))
       .slice(0, 10)
       .map(i => ({
         name: i.name,
         stock: i.stock,
         minStock: i.minStock,
-        deficit: Math.max(0, i.minStock - i.stock),
+        deficit: Math.max(0, Number(i.minStock) - Number(i.stock)),
         unit: i.unit,
-        status: i.stock === 0 ? 'out' : 'low'
+        status: Number(i.stock) === 0 ? 'out' : 'low'
       }));
-
-    const movements = await prisma.stockMovement.groupBy({
-      by: ['type'],
-      where: {
-        ingredient: { branchId }
-      },
-      _count: true,
-      _sum: { quantity: true }
-    });
-
-    const consumptionByType = movements.reduce((acc: Record<string, { count: number; totalQuantity: number }>, m: { type: string; _count: number; _sum: { quantity: number | null } }) => {
-      acc[m.type] = {
-        count: m._count,
-        totalQuantity: Math.abs(m._sum.quantity || 0)
-      };
-      return acc;
-    }, {});
 
     return {
       summary: { total, okCount, lowCount, outCount },
-      lowStockItems,
-      consumptionByType
+      lowStockItems
     };
   }
 }

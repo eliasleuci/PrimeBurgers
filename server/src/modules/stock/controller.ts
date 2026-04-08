@@ -4,62 +4,69 @@ import { StockService } from './service';
 const stockService = new StockService();
 
 export class StockController {
-  async getStock(req: Request, res: Response, next: NextFunction) {
+
+  getStock = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const branchId = req.user!.branchId;
+      const branchId = req.user?.branchId || null;
       const stock = await stockService.getBranchStock(branchId);
       res.status(200).json({ status: 'success', data: { stock } });
     } catch (error) {
       next(error);
     }
-  }
+  };
 
-  async create(req: Request, res: Response, next: NextFunction) {
+  create = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { name, unit, stock, minStock, categoryId } = req.body;
-      const branchId = req.user!.branchId;
+      const branchId = req.user?.branchId || null;
+      
       const ingredient = await stockService.createIngredient({
-        name, unit, stock, minStock, branchId, categoryId
+        name, 
+        unit, 
+        stock, 
+        minStock, 
+        branchId, 
+        categoryId
       });
       res.status(201).json({ status: 'success', data: { ingredient } });
     } catch (error) {
       next(error);
     }
-  }
+  };
 
-  async delete(req: Request, res: Response, next: NextFunction) {
+  delete = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const id = req.params.id as string;
-      const userId = req.user!.id;
+      const userId = req.user?.id as string;
       await stockService.deleteIngredient(id, userId);
       res.status(200).json({ status: 'success', message: 'Ingrediente eliminado' });
     } catch (error) {
       next(error);
     }
-  }
+  };
 
-  async update(req: Request, res: Response, next: NextFunction) {
+  update = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const id = req.params.id as string;
       const { stock, reason } = req.body;
-      const userId = req.user!.id;
+      const userId = req.user?.id as string;
       const ingredient = await stockService.setStock(id, stock, userId, 'ADJUST', reason);
       res.status(200).json({ status: 'success', data: { ingredient } });
     } catch (error) {
       next(error);
     }
-  }
+  };
 
-  async getCategories(req: Request, res: Response, next: NextFunction) {
+  getCategories = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const categories = await stockService.getCategories();
       res.status(200).json({ status: 'success', data: { categories } });
     } catch (error) {
       next(error);
     }
-  }
+  };
 
-  async createCategory(req: Request, res: Response, next: NextFunction) {
+  createCategory = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { name } = req.body;
       const category = await stockService.createCategory(name);
@@ -67,11 +74,11 @@ export class StockController {
     } catch (error) {
       next(error);
     }
-  }
+  };
 
-  async getMovements(req: Request, res: Response, next: NextFunction) {
+  getMovements = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const branchId = req.user!.branchId;
+      const branchId = req.user?.branchId || null;
       const { startDate, endDate } = req.query;
       
       const movements = await stockService.getStockMovements(
@@ -83,15 +90,15 @@ export class StockController {
     } catch (error) {
       next(error);
     }
-  }
+  };
 
-  async getReport(req: Request, res: Response, next: NextFunction) {
+  getReport = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const branchId = req.user!.branchId;
+      const branchId = req.user?.branchId || null;
       const report = await stockService.getStockReport(branchId);
       res.status(200).json({ status: 'success', data: { report } });
     } catch (error) {
       next(error);
     }
-  }
+  };
 }
