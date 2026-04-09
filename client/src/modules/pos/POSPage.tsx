@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useCartStore } from '../../store/cartStore';
 import { useAuthStore } from '../../store/authStore';
+import { supabase } from '../../lib/supabase';
 import { productService } from '../../services/productService';
 import { orderService } from '../../services/orderService';
 import { tableService, Table } from '../../services/tableService';
@@ -19,7 +20,7 @@ import ModifierModal from './components/ModifierModal';
 
 const POSPage: React.FC = () => {
   const { items, addItem, updateQuantity, removeItem, updateItemModifiers, clearCart, getTotal } = useCartStore();
-  const { branchId, user, signOut } = useAuthStore();
+  const { branchId, tenantId, user, signOut } = useAuthStore();
   
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
@@ -162,10 +163,28 @@ const POSPage: React.FC = () => {
       return;
     }
 
+    // Obtener tenant_id si no está en el store
+    let finalTenantId = tenantId;
+    if (!finalTenantId && branchId) {
+      const { data: branchData } = await supabase
+        .from('branches')
+        .select('tenant_id')
+        .eq('id', branchId)
+        .single();
+      finalTenantId = branchData?.tenant_id || '11111111-1111-1111-1111-111111111111';
+    }
+
+    if (!finalTenantId) {
+      setErrorMessage('Error: No se pudo obtener el tenant. Por favor, inicia sesión novamente.');
+      setCheckoutStatus('error');
+      return;
+    }
+
     setCheckoutStatus('loading');
     setErrorMessage('');
 
     const { data, error } = await orderService.createOrder({
+      tenantId: finalTenantId,
       branchId,
       userId: user?.id,
       customerName: customerName.trim() || undefined,

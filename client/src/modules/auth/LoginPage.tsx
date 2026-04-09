@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { authService } from '../../services/authService';
+import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
 import { LogIn, Store, ShieldCheck, Mail, Lock, ChefHat } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -15,7 +16,7 @@ const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   
-  const { setUser, setBranchId } = useAuthStore();
+  const { setUser, setBranchId, setTenantId } = useAuthStore();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,14 +32,26 @@ const LoginPage: React.FC = () => {
     }
 
     if (data?.user) {
-      // Obtenemos el perfil extendido (rol y sucursal)
+      // Obtenemos el perfil extendido (rol, sucursal y tenant)
       const { data: profile } = await authService.getProfile(data.user.id);
       
       const userRole = profile?.role || 'CASHIER';
       const myBranchId = profile?.branch_id || 'b1111111-1111-1111-1111-111111111111';
       
+      // Si tenant_id es null, obtenerlo desde la branch
+      let myTenantId = profile?.tenant_id;
+      if (!myTenantId) {
+        const { data: branchData } = await supabase
+          .from('branches')
+          .select('tenant_id')
+          .eq('id', myBranchId)
+          .single();
+        myTenantId = branchData?.tenant_id || '11111111-1111-1111-1111-111111111111';
+      }
+      
       setUser(data.user, data.session, userRole);
       setBranchId(myBranchId);
+      setTenantId(myTenantId);
     }
     setLoading(false);
   };

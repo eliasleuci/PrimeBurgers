@@ -8,9 +8,11 @@ interface AuthState {
   session: Session | null;
   role: 'ADMIN' | 'CASHIER' | 'KITCHEN' | null;
   branchId: string | null;
+  tenantId: string | null;
   loading: boolean;
   setUser: (user: User | null, session: Session | null, role?: 'ADMIN' | 'CASHIER' | 'KITCHEN' | null) => void;
   setBranchId: (id: string | null) => void;
+  setTenantId: (id: string | null) => void;
   signOut: () => Promise<void>;
 }
 
@@ -21,14 +23,16 @@ export const useAuthStore = create<AuthState>()(
       session: null,
       role: null,
       branchId: null,
+      tenantId: null,
       loading: true,
       setUser: (user, session, role = null) => set({ user, session, role, loading: false }),
       setBranchId: (id) => set({ branchId: id }),
+      setTenantId: (id) => set({ tenantId: id }),
       signOut: async () => {
         try {
           await supabase.auth.signOut();
         } catch (e) { /* ignore in mock */ }
-        set({ user: null, session: null, branchId: null, loading: false });
+        set({ user: null, session: null, branchId: null, tenantId: null, loading: false });
       },
     }),
     {

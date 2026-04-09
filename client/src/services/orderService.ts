@@ -5,6 +5,7 @@ import { ServiceResponse, Order, OrderStatus } from '../types/domain';
 class OrderService implements IOrderService {
   async createOrder(params: CreateOrderParams): Promise<ServiceResponse<any>> {
     const { data, error } = await supabase.rpc('create_order_secure', {
+      p_tenant_id: params.tenantId,
       p_branch_id: params.branchId,
       p_user_id: params.userId,
       p_customer_name: params.customerName || null,

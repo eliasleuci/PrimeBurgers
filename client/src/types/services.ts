@@ -18,6 +18,7 @@ export interface OrderItem {
 }
 
 export interface CreateOrderParams {
+  tenantId: string;
   branchId: string;
   userId?: string;
   customerName?: string;

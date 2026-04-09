@@ -21,7 +21,7 @@ class AuthService implements IAuthService {
   async getProfile(userId: string): Promise<ServiceResponse<any>> {
     const { data, error } = await supabase
       .from('profiles')
-      .select('role, branch_id')
+      .select('role, branch_id, tenant_id')
       .eq('id', userId)
       .single();
     return { data, error: error?.message || null };
