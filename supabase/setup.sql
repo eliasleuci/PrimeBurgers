@@ -23,12 +23,17 @@ DROP TABLE IF EXISTS tenants CASCADE;
 -- 3. CREACIÓN DE TABLAS
 -- ==========================================
 
--- Tenants (Empresas)
+-- Clientes / Empresas (Tenants)
 CREATE TABLE tenants (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name TEXT NOT NULL,
-  slug TEXT NOT NULL UNIQUE,
+  slug TEXT UNIQUE,
+  email TEXT,
+  phone TEXT,
+  logo_url TEXT,
   is_active BOOLEAN DEFAULT true,
+  subscription_status TEXT CHECK (subscription_status IN ('ACTIVE', 'EXPIRED', 'PENDING_PAYMENT')) DEFAULT 'ACTIVE',
+  subscription_expires_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -39,6 +44,11 @@ CREATE TABLE branches (
   tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   location TEXT,
+  email TEXT, -- Email específico de la sucursal
+  phone TEXT, -- Teléfono específico de la sucursal
+  subscription_status TEXT CHECK (subscription_status IN ('ACTIVE', 'EXPIRED', 'PENDING_PAYMENT')) DEFAULT 'ACTIVE',
+  subscription_expires_at TIMESTAMPTZ,
+  last_payment_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -47,7 +57,7 @@ CREATE TABLE profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   email TEXT NOT NULL,
-  role TEXT CHECK (role IN ('ADMIN', 'CASHIER', 'KITCHEN')) DEFAULT 'CASHIER',
+  role TEXT CHECK (role IN ('SUPER_ADMIN', 'ADMIN', 'CASHIER', 'KITCHEN')) DEFAULT 'CASHIER',
   branch_id UUID REFERENCES branches(id) ON DELETE CASCADE,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -199,19 +209,32 @@ CREATE OR REPLACE FUNCTION get_my_branch_id() RETURNS UUID AS $$
 $$ LANGUAGE sql SECURITY DEFINER STABLE;
 
 -- Reglas (Omitiendo restricciones severas de update/delete para facilitar Testing)
-CREATE POLICY "Ver mi tenant" ON tenants FOR SELECT USING (id = get_my_tenant_id());
-CREATE POLICY "Ver mi sucursal" ON branches FOR SELECT USING (tenant_id = get_my_tenant_id());
-CREATE POLICY "Ver perfiles sucursal" ON profiles FOR SELECT USING (tenant_id = get_my_tenant_id());
-CREATE POLICY "Ver categorias tenant" ON categories FOR SELECT USING (tenant_id = get_my_tenant_id());
+-- Reglas (Omitiendo restricciones severas de update/delete para facilitar Testing)
+CREATE POLICY "Super Admin Full Access Tenants" ON tenants FOR ALL USING (
+  (SELECT role FROM profiles WHERE id = auth.uid()) = 'SUPER_ADMIN'
+);
+
+CREATE POLICY "Super Admin Full Access Branches" ON branches FOR ALL USING (
+  (SELECT role FROM profiles WHERE id = auth.uid()) = 'SUPER_ADMIN'
+);
+
+CREATE POLICY "Super Admin Full Access Profiles" ON profiles FOR ALL USING (
+  (SELECT role FROM profiles WHERE id = auth.uid()) = 'SUPER_ADMIN'
+);
+
+CREATE POLICY "Ver mi sucursal" ON branches FOR SELECT USING (id = get_my_branch_id());
+CREATE POLICY "Ver perfiles sucursal" ON profiles FOR SELECT USING (branch_id = get_my_branch_id());
 CREATE POLICY "Public Categories" ON categories FOR SELECT USING (true);
-CREATE POLICY "Ver productos sucursal" ON products FOR SELECT USING (tenant_id = get_my_tenant_id());
-CREATE POLICY "Ver ingredientes sucursal" ON ingredients FOR SELECT USING (tenant_id = get_my_tenant_id() OR branch_id = get_my_branch_id());
+CREATE POLICY "Ver productos sucursal" ON products FOR SELECT USING (branch_id = get_my_branch_id() OR (SELECT role FROM profiles WHERE id = auth.uid()) = 'SUPER_ADMIN');
+CREATE POLICY "Ver ingredientes sucursal" ON ingredients FOR SELECT USING (branch_id = get_my_branch_id() OR branch_id IS NULL OR (SELECT role FROM profiles WHERE id = auth.uid()) = 'SUPER_ADMIN');
 CREATE POLICY "Ver recetas" ON recipes FOR SELECT USING (true);
 
--- Órdenes e Ítems (Só ordenes de mi tenant)
-CREATE POLICY "Orders Tenant Isolation" ON orders FOR ALL USING (tenant_id = get_my_tenant_id());
-CREATE POLICY "Order Items Tenant Isolation" ON order_items FOR ALL USING (
-  tenant_id = get_my_tenant_id()
+-- Órdenes e Ítems (Sólo los de tu sucursal o Super Admin)
+CREATE POLICY "Orders Branch Isolation" ON orders FOR ALL USING (
+  branch_id = get_my_branch_id() OR (SELECT role FROM profiles WHERE id = auth.uid()) = 'SUPER_ADMIN'
+);
+CREATE POLICY "Order Items Branch Isolation" ON order_items FOR ALL USING (
+  order_id IN (SELECT id FROM orders WHERE branch_id = get_my_branch_id()) OR (SELECT role FROM profiles WHERE id = auth.uid()) = 'SUPER_ADMIN'
 );
 
 -- ==========================================

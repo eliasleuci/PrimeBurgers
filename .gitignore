@@ -2,11 +2,13 @@
 node_modules/
 client/node_modules/
 server/node_modules/
+admin/node_modules/
 
 # Build outputs
 dist/
 client/dist/
 server/dist/
+admin/dist/
 .vercel/
 
 # Environment variables

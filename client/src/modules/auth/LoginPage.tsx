@@ -135,22 +135,6 @@ const LoginPage: React.FC = () => {
               Entrar al Sistema
             </Button>
             
-            <div className="pt-4">
-              <Button
-                type="button"
-                variant="secondary"
-                fullWidth
-                size="md"
-                onClick={() => {
-                  setBranchId('b1111111-1111-1111-1111-111111111111');
-                  window.location.href = '/kitchen';
-                }}
-                className="bg-primary/5 border-primary/10 hover:bg-primary/10 text-primary"
-                leftIcon={<ChefHat size={20} className="text-primary" />}
-              >
-                Modo Cocina (Acceso Rápido)
-              </Button>
-            </div>
           </form>
 
           <footer className="mt-12 pt-8 border-t border-border-subtle flex flex-col items-center gap-2">
