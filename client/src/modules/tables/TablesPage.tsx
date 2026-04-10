@@ -512,7 +512,7 @@ const LinkModal: React.FC<{
           {isChild ? (
             <div className="space-y-4">
               <p className="text-sm font-bold text-warning">Esta mesa ya está unida a la mesa principal. ¿Querés desunirla y volver a hacerla independiente?</p>
-              <Button fullWidth variant="warning" isLoading={loading} onClick={() => handleLink(null)}>Desunir Mesa</Button>
+              <Button fullWidth variant="danger" isLoading={loading} onClick={() => handleLink(null)}>Desunir Mesa</Button>
             </div>
           ) : (
             <div className="space-y-2">

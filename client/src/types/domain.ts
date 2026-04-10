@@ -17,6 +17,7 @@ export interface Category {
 
 export interface Product {
   id: string;
+  tenant_id?: string;
   branch_id: string;
   category_id: string;
   name: string;
