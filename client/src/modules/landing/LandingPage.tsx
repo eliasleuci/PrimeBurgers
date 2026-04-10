@@ -171,15 +171,15 @@ const LandingPage: React.FC = () => {
       </nav>
 
       {/* Hero Section */}
-      <section className="min-h-screen pt-24 lg:pt-20 relative overflow-hidden flex items-center">
+      <section className="min-h-screen pt-32 lg:pt-20 relative overflow-hidden flex items-center">
         <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-[#FF6B00]/10 rounded-full blur-[150px] animate-pulse-glow"></div>
         <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-[#FF6B00]/5 rounded-full blur-[150px]"></div>
         
-        <div className="max-w-7xl mx-auto px-6 lg:px-8 pt-24 lg:pt-32 relative w-full">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8 pt-32 lg:pt-32 relative w-full">
           <div className="grid lg:grid-cols-2 gap-16 lg:gap-24 items-center">
             
             <div className="space-y-8 animate-fadeUp flex flex-col items-center lg:items-start text-center lg:text-left">
-              <div className="inline-flex items-center gap-3 px-4 py-2 glass rounded-full text-sm">
+              <div className="inline-flex items-center gap-3 px-4 py-2 glass rounded-full text-[12px] sm:text-sm">
                 <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
@@ -187,12 +187,12 @@ const LandingPage: React.FC = () => {
                 <span className="text-gray-400">+200 locales activos</span>
               </div>
               
-              <h1 className="font-display font-black text-6xl sm:text-7xl lg:text-8xl leading-[0.9] tracking-tighter uppercase">
+              <h1 className="font-display font-black text-4xl sm:text-7xl lg:text-8xl leading-[0.9] tracking-tighter uppercase">
                 Tu cocina,<br />
                 <span className="gradient-text leading-tight">sin caos.</span>
               </h1>
               
-              <p className="text-xl text-gray-400 max-w-lg leading-relaxed font-medium">
+              <p className="text-lg lg:text-xl text-gray-400 max-w-lg leading-relaxed font-medium">
                 Gestioná pedidos, stock y mesas desde un solo lugar. Sin papelitos, sin confusiones, sin tiempo perdido.
               </p>
               
