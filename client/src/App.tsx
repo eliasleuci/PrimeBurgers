@@ -1,11 +1,12 @@
 import { useEffect, lazy, Suspense } from 'react';
-import { HashRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from './lib/supabase';
 import { useAuthStore } from './store/authStore';
 import { useThemeStore } from './store/themeStore';
 import { cn } from './lib/utils';
 import Sidebar from './layouts/Sidebar';
 
+const LandingPage = lazy(() => import('./modules/landing/LandingPage'));
 const LoginPage = lazy(() => import('./modules/auth/LoginPage'));
 const POSPage = lazy(() => import('./modules/pos/POSPage'));
 const KitchenPage = lazy(() => import('./modules/kitchen/KitchenPage'));
@@ -21,6 +22,20 @@ const PageLoader = () => (
     <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
   </div>
 );
+
+// Componente para manejar redirecciones de Hash (links viejos)
+const HashRedirectHandler = () => {
+  const navigate = useNavigate();
+  useEffect(() => {
+    // Si la URL contiene un hash como #/login, lo enviamos al path real /login
+    if (window.location.hash.includes('/login')) {
+      navigate('/login', { replace: true });
+    } else if (window.location.hash === '#/' || window.location.hash === '#') {
+      navigate('/', { replace: true });
+    }
+  }, [navigate]);
+  return null;
+};
 
 // Componente para manejar el Layout condicional
 const AppContent = () => {
@@ -64,18 +79,22 @@ const AppContent = () => {
 
   return (
     <div className="flex h-screen overflow-hidden bg-surface-base text-text-primary transition-colors duration-300">
+      <HashRedirectHandler />
       {user && branchId && !shouldHideSidebar && <Sidebar />}
       <main className={cn("flex-1 overflow-auto bg-surface-base relative", (shouldHideSidebar || !branchId) && "w-full")}>
         <Suspense fallback={<PageLoader />}>
           {(!user || !branchId) ? (
             <Routes>
+              <Route path="/" element={<LandingPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/kitchen" element={<KitchenPage />} />
               <Route path="/debug" element={<DebugPage />} />
-              <Route path="*" element={<Navigate to="/login" replace />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           ) : (
             <Routes>
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/login" element={<Navigate to="/pos" replace />} />
               <Route path="/pos" element={<POSPage />} />
               <Route path="/kitchen" element={<KitchenPage />} />
               <Route path="/dashboard" element={<DashboardPage />} />
@@ -95,9 +114,9 @@ const AppContent = () => {
 
 function App() {
   return (
-    <HashRouter>
+    <BrowserRouter>
       <AppContent />
-    </HashRouter>
+    </BrowserRouter>
   );
 }
 
