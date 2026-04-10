@@ -171,11 +171,11 @@ const LandingPage: React.FC = () => {
       </nav>
 
       {/* Hero Section */}
-      <section className="min-h-screen pt-20 relative overflow-hidden flex items-center">
+      <section className="min-h-screen pt-24 lg:pt-20 relative overflow-hidden flex items-center">
         <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-[#FF6B00]/10 rounded-full blur-[150px] animate-pulse-glow"></div>
         <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-[#FF6B00]/5 rounded-full blur-[150px]"></div>
         
-        <div className="max-w-7xl mx-auto px-6 lg:px-8 pt-20 lg:pt-32 relative w-full">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8 pt-24 lg:pt-32 relative w-full">
           <div className="grid lg:grid-cols-2 gap-16 lg:gap-24 items-center">
             
             <div className="space-y-8 animate-fadeUp flex flex-col items-center lg:items-start text-center lg:text-left">
@@ -264,7 +264,7 @@ const LandingPage: React.FC = () => {
       </section>
 
       {/* Problems Section */}
-      <section id="problema" className="py-24 lg:py-32 relative overflow-hidden">
+      <section id="problema" className="py-24 lg:py-32 relative overflow-hidden scroll-mt-20">
         <div className="max-w-6xl mx-auto px-6 lg:px-8 relative">
           <div className="text-center mb-16 px-4">
             <span className="inline-flex items-center gap-2 px-4 py-1.5 bg-red-500/10 border border-red-500/20 text-red-400 font-mono text-[10px] font-black uppercase tracking-widest rounded-full mb-6">
@@ -329,7 +329,7 @@ const LandingPage: React.FC = () => {
       </section>
 
       {/* Modules Section */}
-      <section id="modulos" className="py-24 lg:py-32 relative">
+      <section id="modulos" className="py-24 lg:py-32 relative scroll-mt-20">
         <div className="max-w-7xl mx-auto px-6 lg:px-8 relative">
           <div className="text-center mb-16 animate-fadeUp">
             <span className="inline-flex items-center gap-2 px-4 py-1.5 bg-[#FF6B00]/10 border border-[#FF6B00]/20 text-[#FF6B00] font-mono text-[10px] font-black uppercase tracking-widest rounded-full mb-6">SISTEMA MODULAR</span>
@@ -358,7 +358,7 @@ const LandingPage: React.FC = () => {
       </section>
 
       {/* Gallery */}
-      <section id="galeria" className="py-24 lg:py-32 relative overflow-hidden">
+      <section id="galeria" className="py-24 lg:py-32 relative overflow-hidden scroll-mt-20">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="text-center mb-16 animate-fadeUp">
             <h2 className="font-display font-black text-4xl lg:text-7xl tracking-tighter mb-4 leading-tight uppercase">Galería</h2>
@@ -382,23 +382,23 @@ const LandingPage: React.FC = () => {
         </div>
       </section>
 
-      {/* Pricing Section - FIXED SPACING */}
-      <section id="precios" className="py-24 lg:py-32 relative">
+      {/* Pricing Section */}
+      <section id="precios" className="py-24 lg:py-32 relative scroll-mt-20">
         <div className="max-w-4xl mx-auto px-6 lg:px-8">
-          <div className="glass-card rounded-[3rem] p-10 lg:p-16 text-center relative overflow-hidden">
+          <div className="glass-card rounded-[3rem] p-8 lg:p-16 text-center relative overflow-hidden">
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[400px] h-[200px] bg-[#FF6B00]/20 rounded-full blur-[100px] -z-10"></div>
             
             <div className="relative">
-              <span className="inline-flex items-center gap-2 px-5 py-2 bg-[#FF6B00]/10 border border-[#FF6B00]/20 text-[#FF6B00] font-mono text-[10px] font-black uppercase tracking-[0.3em] rounded-full mb-10">
+              <span className="inline-flex items-center gap-2 px-5 py-2 bg-[#FF6B00]/10 border border-[#FF6B00]/20 text-[#FF6B00] font-mono text-[10px] font-black uppercase tracking-[0.3em] rounded-full mb-8">
                 <Sparkles size={14} />
                 PRECIOS SIMPLES
               </span>
               
-              <h2 className="font-display font-black text-5xl lg:text-7xl tracking-tighter mb-10 leading-none uppercase">Sin sorpresas.</h2>
+              <h2 className="font-display font-black text-4xl sm:text-5xl lg:text-7xl tracking-tighter mb-8 leading-none uppercase">Sin sorpresas.</h2>
               
-              <div className="glass rounded-[2.5rem] p-10 max-w-md mx-auto border border-[#FF6B00]/20 shadow-2xl relative z-10">
-                <div className="font-display font-black text-6xl lg:text-7xl text-[#FF6B00] mb-2 leading-none">$45.000</div>
-                <div className="text-gray-400 font-black uppercase tracking-[0.4em] text-[10px] mb-10">pesos / mes</div>
+              <div className="glass rounded-[2.5rem] p-8 lg:p-10 max-w-md mx-auto border border-[#FF6B00]/20 shadow-2xl relative z-10">
+                <div className="font-display font-black text-5xl sm:text-6xl lg:text-7xl text-[#FF6B00] mb-2 leading-none">$45.000</div>
+                <div className="text-gray-400 font-black uppercase tracking-[0.4em] text-[10px] mb-8">pesos / mes</div>
                 
                 <ul className="space-y-4 text-left mb-10">
                   {['Pedidos ilimitados', 'Control de stock real', 'Menú con fotos', 'Métricas de venta', 'Multi-sucursal', 'Soporte prioritario'].map((item, i) => (
