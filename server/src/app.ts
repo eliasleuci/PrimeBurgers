@@ -10,6 +10,7 @@ import orderRoutes from './modules/orders/routes';
 import stockRoutes from './modules/stock/routes';
 import reportRoutes from './modules/reports/routes';
 import healthRoutes from './modules/health/routes';
+import tenantsRoutes from './modules/tenants/routes';
 
 const app = express();
 
@@ -32,6 +33,7 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/stock', stockRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/health', healthRoutes);
+app.use('/api/tenants', tenantsRoutes);
 
 // Health Check
 app.get('/health', (req, res) => {

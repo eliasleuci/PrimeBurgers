@@ -17,6 +17,10 @@ const TablesPage = lazy(() => import('./modules/tables/TablesPage'));
 const StockPage = lazy(() => import('./modules/stock/StockPage'));
 const DebugPage = lazy(() => import('./modules/debug/DebugPage'));
 
+// Superadmin
+const SuperAdminLayout = lazy(() => import('./layouts/SuperAdminLayout'));
+const TenantsPage = lazy(() => import('./modules/superadmin/TenantsPage'));
+
 const PageLoader = () => (
   <div className="min-h-screen bg-surface-base flex items-center justify-center">
     <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
@@ -73,9 +77,31 @@ const AppContent = () => {
     );
   }
 
+  const isLandingRoute = location.pathname === '/';
   const isKitchenRoute = location.pathname === '/kitchen';
-  // Solo ocultamos el sidebar si estamos en cocina Y el rol es KITCHEN o no hay usuario
-  const shouldHideSidebar = isKitchenRoute && (role === 'KITCHEN' || !user);
+  // Ocultamos el sidebar si es Kitchen (y rol cocina/sin usuario) o si es la Landing Page
+  const shouldHideSidebar = (isKitchenRoute && (role === 'KITCHEN' || !user)) || isLandingRoute;
+  
+  const isSuperAdmin = role === 'SUPER_ADMIN';
+
+  // Si es SuperAdmin usamos el layout propio de super admin y sus rutas
+  if (isSuperAdmin && user) {
+    return (
+      <div className="flex h-screen overflow-hidden bg-[#0A0A0B] text-white transition-colors duration-300">
+        <HashRedirectHandler />
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            <Route path="/superadmin/*" element={<SuperAdminLayout />}>
+              <Route index element={<TenantsPage />} />
+              <Route path="tenants" element={<TenantsPage />} />
+              <Route path="*" element={<Navigate to="/superadmin/tenants" replace />} />
+            </Route>
+            <Route path="*" element={<Navigate to="/superadmin/tenants" replace />} />
+          </Routes>
+        </Suspense>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-surface-base text-text-primary transition-colors duration-300">

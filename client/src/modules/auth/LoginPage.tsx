@@ -61,6 +61,12 @@ const LoginPage: React.FC = () => {
       
       setUser(data.user, data.session, userRole);
 
+      if (userRole === 'SUPER_ADMIN') {
+        // Superadmins bypass tenant/branch check
+        setLoading(false);
+        return;
+      }
+
       if (myTenantId) {
         setTenantId(myTenantId);
         await loadBranches(myTenantId);
